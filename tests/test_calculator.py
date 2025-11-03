@@ -1,6 +1,6 @@
 from unittest.mock import patch
 import pytest
-from app.calculator import CalculatorREPL
+from app.calculator import Calculator
 
 def test_repl_exit(capsys, clean_calculator):
     with patch("builtins.input", side_effect=["exit"]): clean_calculator.run()
