@@ -1,4 +1,5 @@
-import os, pandas as pd
+import os
+import csv
 from typing import List, Dict, Any
 from .calculator_memento import Memento
 from .calculator_config import Config
@@ -15,8 +16,17 @@ class HistoryManager:
     def _load_or_initialize(self):  # pragma: no cover
         if os.path.exists(self.filepath):
             try:
-                df = pd.read_csv(self.filepath, encoding=Config.get_default_encoding())
-                self._rows = df.to_dict("records")
+                with open(self.filepath, encoding=Config.get_default_encoding(), newline='') as fh:
+                    reader = csv.DictReader(fh)
+                    self._rows = [
+                        {
+                            "operation": row.get("operation"),
+                            "a": float(row.get("a")) if row.get("a") not in (None, "") else 0.0,
+                            "b": float(row.get("b")) if row.get("b") not in (None, "") else 0.0,
+                            "result": float(row.get("result")) if row.get("result") not in (None, "") else 0.0,
+                        }
+                        for row in reader
+                    ]
             except Exception:
                 self._rows = []
         else:
@@ -38,9 +48,17 @@ class HistoryManager:
         return [f"{r['a']} {r['operation']} {r['b']} = {r['result']}" for r in self._rows]
 
     def save(self):  # pragma: no cover
-        pd.DataFrame(self._rows, columns=["operation","a","b","result"]).to_csv(
-            self.filepath, index=False, encoding=Config.get_default_encoding()
-        )
+        # Write CSV using the stdlib csv module to avoid pandas dependency
+        with open(self.filepath, "w", encoding=Config.get_default_encoding(), newline='') as fh:
+            writer = csv.DictWriter(fh, fieldnames=["operation", "a", "b", "result"])
+            writer.writeheader()
+            for row in self._rows:
+                writer.writerow({
+                    "operation": row.get("operation"),
+                    "a": row.get("a"),
+                    "b": row.get("b"),
+                    "result": row.get("result"),
+                })
 
     def load(self):  # pragma: no cover
         self._load_or_initialize()
