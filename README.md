@@ -1,57 +1,52 @@
-# Calculator Application
+# 🧮 Enhanced Calculator Command-Line Application
 
-A simple yet powerful calculator application with memory functionality, operation history, and extensive error handling.
+![CI](https://github.com/gt-codes04/MidProject/actions/workflows/python-app.yml/badge.svg)
 
-## Features
+## 📘 Overview
+This is a **fully functional, object-oriented command-line calculator** built for the NJIT Midterm Project.  
+It features **modular design**, **error handling**, **logging**, **undo/redo (Memento pattern)**, **auto-save (Observer pattern)**, and a **Factory-based operation system**.  
+All functionality is covered by **pytest** with >90% coverage, and **GitHub Actions** runs CI on every push.
 
-- Basic arithmetic operations (+, -, *, /)
-- Expression validation
-- Operation history tracking
-- State management (Memento pattern)
-- Logging functionality
-- Environment-based configuration
+---
 
-## Project Structure
+## ⚙️ Features
+### Core Operations
+- ➕ Addition, ➖ Subtraction, ✖️ Multiplication, ➗ Division  
+- 🔢 Power, Root, Modulus, Integer Division  
+- 💯 Percentage and Absolute Difference  
 
-```
-project_root/
-├── app/                 # Main application package
-├── tests/              # Test files
-├── .env                # Environment configuration
-├── requirements.txt    # Project dependencies
-└── .github/workflows/  # CI/CD configuration
-```
+### Advanced Functionality
+- 🧠 Undo / Redo with **Memento pattern**
+- 📜 Persistent History using **pandas**
+- 📡 Observers for auto-save and logging
+- ⚙️ Configurable via `.env` file
+- 🧩 Factory pattern for operation creation
+- 🧾 Robust logging and input validation
 
-## Installation
+---
 
-1. Clone the repository
-2. Create a virtual environment:
-   ```
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-3. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-
-## Usage
-
-```python
-from app.calculator import Calculator
-
-calc = Calculator()
-result = calc.calculate("2 + 2")
-print(result)  # Output: 4
-```
-
-## Testing
-
-Run the tests using:
-```
-python -m unittest discover tests
-```
-
-## License
-
-MIT License
+## 📁 Project Structure
+mid_calculator/
+├── app/
+│ ├── init.py
+│ ├── calculator.py
+│ ├── calculation.py
+│ ├── calculator_config.py
+│ ├── calculator_memento.py
+│ ├── exceptions.py
+│ ├── history.py
+│ ├── input_validators.py
+│ ├── logger.py
+│ └── operations.py
+├── tests/
+│ ├── test_calculator.py
+│ ├── test_calculation.py
+│ ├── test_operations.py
+│ ├── test_history.py
+│ ├── test_validators.py
+│ └── test_memento_extra.py
+├── .env
+├── requirements.txt
+├── pytest.ini
+├── .gitignore
+└── .github/workflows/python-app.yml
