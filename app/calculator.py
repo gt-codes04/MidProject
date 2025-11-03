@@ -13,6 +13,7 @@ from .calculator_memento import Caretaker
 from .logger import setup_logger, LoggingObserver
 from .exceptions import OperationError, ValidationError
 from .input_validators import validate_two_numbers
+from functools import wraps
 
 
 def validate_input(s: str) -> Tuple[str, str | None, str | None]:
@@ -90,12 +91,44 @@ class Calculator:
         self.history.load()
         print("History loaded.")
 
+    # Dynamic help: auto-generates available commands by inspecting the
+    # CalculationFactory mapping and combining with built-in commands.
+    def dynamic_help(commands_getter):
+        def decorator(func):
+            @wraps(func)
+            def wrapper(self, *args, **kwargs):
+                print("Available Commands")
+                # print built-in commands first
+                builtins = ["help", "history", "clear", "undo", "redo", "save", "load", "exit"]
+                print("  " + ", ".join(builtins))
+
+                # commands_getter should return a mapping of command -> description
+                commands = commands_getter()
+                if commands:
+                    print()
+                    print("  Or: " + " | ".join(sorted(commands)))
+                    print()
+                    # print a brief auto-generated list
+                    print("Auto-generated operations:")
+                    for cmd in sorted(commands):
+                        print(f"  {cmd}")
+                # call the original (keeps compatibility if it does something)
+                return func(self, *args, **kwargs)
+
+            return wrapper
+        return decorator
+
+    def _commands_map():
+        # Extract operation names from CalculationFactory to auto-populate help
+        try:
+            return list(CalculationFactory._mapping.keys())
+        except Exception:
+            return []
+
+    @dynamic_help(_commands_map)
     def _help(self):
-        print("Available Commands")
-        print("  help, history, clear, undo, redo, save, load, exit")
-        print(
-            "  Or: add 5 3 | divide 10 2 | power 2 8 | int_divide 10 3 | modulus 10 3 | percent 25 100 | abs_diff 9 2 | root 27 3"
-        )
+        # kept intentionally minimal; dynamic decorator prints the meat
+        return None
 
     def run(self):
         print("Advanced Calculator REPL. Type 'help' for commands, 'exit' to quit.")
