@@ -15,7 +15,8 @@ def test_repl_help(capsys, clean_calculator):
 @pytest.fixture
 def clean_calculator():
     """Return a fresh calculator instance for each test."""
-    r = CalculatorREPL()
+    # Use the Calculator class from app.calculator
+    r = Calculator()
     r.history.clear()  # Ensure history starts empty
     return r
 

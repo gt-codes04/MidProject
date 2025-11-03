@@ -1,54 +1,152 @@
-# app/calculator_config.py
-from __future__ import annotations
-import os
-from dotenv import load_dotenv, find_dotenv  # <-- add find_dotenv
+"""
+Calculator REPL and programmatic Calculator interface.
 
-class Config:
-    """Loads and provides access to configuration settings."""
+This module provides a small interactive REPL (`Calculator.run`) and a
+programmatic `Calculator` class used by tests. Historically the codebase
+used different names (CalculatorREPL); tests import `Calculator` and call
+`calculator()` helper — both are provided for compatibility.
+"""
+from typing import Tuple
+from .calculation import CalculationFactory
+from .history import HistoryManager
+from .calculator_memento import Caretaker
+from .logger import setup_logger, LoggingObserver
+from .exceptions import OperationError, ValidationError
+from .input_validators import validate_two_numbers
 
-    @staticmethod
-    def load_config() -> None:
-        """
-        Load .env from project root reliably.
-        - find_dotenv() searches up the directory tree.
-        - override=True ensures .env values replace process env vars.
-        """
-        dotenv_path = find_dotenv(usecwd=True)
-        load_dotenv(dotenv_path=dotenv_path, override=True)
 
-    @staticmethod
-    def get_log_dir() -> str:
-        return os.getenv("CALCULATOR_LOG_DIR", "logs")
+def validate_input(s: str) -> Tuple[str, str | None, str | None]:
+    s = (s or "").strip().lower()
+    if s in {"exit", "quit"}:
+        return ("exit", None, None)
+    if s == "help":
+        return ("help", None, None)
+    if s == "history":
+        return ("history", None, None)
+    if s == "clear":
+        return ("clear", None, None)
+    if s == "undo":
+        return ("undo", None, None)
+    if s == "redo":
+        return ("redo", None, None)
+    if s == "save":
+        return ("save", None, None)
+    if s == "load":
+        return ("load", None, None)
+    parts = s.split()
+    if len(parts) == 3:
+        return (parts[0], parts[1], parts[2])
+    raise ValueError("Invalid command format.")
 
-    @staticmethod
-    def get_log_file() -> str:
-        return os.getenv("CALCULATOR_LOG_FILE", "app.log")
 
-    @staticmethod
-    def get_history_dir() -> str:
-        return os.getenv("CALCULATOR_HISTORY_DIR", "history")
+class Calculator:
+    def __init__(self):
+        setup_logger()
+        self.history = HistoryManager()
+        self.caretaker = Caretaker()
+        self.observers = [LoggingObserver()]
 
-    @staticmethod
-    def get_history_file() -> str:
-        return os.getenv("CALCULATOR_HISTORY_FILE", "calculation_history.csv")
+    def _notify(self, op, a, b, result):
+        for obs in self.observers:
+            obs.update(op, a, b, result)
 
-    @staticmethod
-    def get_max_history_size() -> int:
-        return int(os.getenv("CALCULATOR_MAX_HISTORY_SIZE", 100))
+    def perform(self, op: str, a_raw: str, b_raw: str):
+        try:
+            a, b = validate_two_numbers(a_raw, b_raw)
+            calc = CalculationFactory.create(op, a, b)
+            self.caretaker.push(self.history.save_to_memento())
+            result = calc.get_result()
+            self.history.add_entry(a, op, b, result)
+            self._notify(op, a, b, result)
+            out = int(result) if result == int(result) else result
+            print(f"Result: {out}")
+        except ZeroDivisionError:
+            print("Error: Cannot divide by zero.")
+        except (OperationError, ValidationError) as e:
+            print(f"Error: {e}")
 
-    @staticmethod
-    def get_auto_save() -> bool:
-        val = os.getenv("CALCULATOR_AUTO_SAVE", "false").strip().lower()
-        return val in {"1", "true", "yes", "on"}
+    def cmd_history(self):
+        if self.history.is_empty():
+            print("History is empty.")
+        else:
+            for line in self.history.to_list():
+                print(line)
 
-    @staticmethod
-    def get_precision() -> int:
-        return int(os.getenv("CALCULATOR_PRECISION", 4))
+    def cmd_clear(self):
+        self.history.clear()
+        print("History cleared.")
 
-    @staticmethod
-    def get_max_input_value() -> float:
-        return float(os.getenv("CALCULATOR_MAX_INPUT_VALUE", 1_000_000))
+    def cmd_undo(self):
+        print("Undo successful." if self.caretaker.undo(self.history) else "Nothing to undo.")
 
-    @staticmethod
-    def get_default_encoding() -> str:
-        return os.getenv("CALCULATOR_DEFAULT_ENCODING", "utf-8")
+    def cmd_redo(self):
+        print("Redo successful." if self.caretaker.redo(self.history) else "Nothing to redo.")
+
+    def cmd_save(self):
+        self.history.save()
+        print("History saved.")
+
+    def cmd_load(self):
+        self.history.load()
+        print("History loaded.")
+
+    def _help(self):
+        print("Available Commands")
+        print("  help, history, clear, undo, redo, save, load, exit")
+        print(
+            "  Or: add 5 3 | divide 10 2 | power 2 8 | int_divide 10 3 | modulus 10 3 | percent 25 100 | abs_diff 9 2 | root 27 3"
+        )
+
+    def run(self):
+        print("Advanced Calculator REPL. Type 'help' for commands, 'exit' to quit.")
+        while True:
+            try:
+                line = input(">> ")
+                kind, a, b = validate_input(line)
+                if kind == "exit":
+                    print("Exiting calculator. Goodbye!")
+                    break
+                if kind == "help":
+                    self._help()
+                    continue
+                if kind == "history":
+                    self.cmd_history()
+                    continue
+                if kind == "clear":
+                    self.cmd_clear()
+                    continue
+                if kind == "undo":
+                    self.cmd_undo()
+                    continue
+                if kind == "redo":
+                    self.cmd_redo()
+                    continue
+                if kind == "save":
+                    self.cmd_save()
+                    continue
+                if kind == "load":
+                    self.cmd_load()
+                    continue
+                if a is None or b is None:
+                    print("Input Error: Invalid command format.")
+                    continue
+                self.perform(kind, a, b)
+            except ValueError as ve:
+                if str(ve) == "Invalid command format.":
+                    print("Input Error: Invalid command format.")
+                else:
+                    print(f"Input Error: {ve}")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+
+
+def calculator():
+    """Compatibility helper used by older tests that expect a callable.
+
+    Returns a fresh Calculator instance.
+    """
+    return Calculator()
+
+
+if __name__ == "__main__":  # pragma: no cover
+    Calculator().run()

@@ -49,26 +49,41 @@ class Caretaker:
         self._redo.clear()
 
     def undo(self, originator) -> bool:
+        # Nothing to undo
         if not self._undo:
             return False
-        prev = self._undo.pop()
-        # save current state to redo stack
+        # Pop the top memento (it may represent the previous or current state
+        # depending on whether callers pushed before/after a change).
+        popped = self._undo.pop()
+
+        # Save current state to the redo stack so redo can restore it later.
         try:
             self._redo.append(originator.save_to_memento())
         except Exception:
-            # If originator doesn't support saving, we still attempt restore
+            # Ignore save failures; still attempt to restore a previous state
             pass
-        originator.restore_from_memento(prev)
+
+        # Determine which memento to restore:
+        # - If there is another item on the undo stack, restore that (the
+        #   previous state).
+        # - Otherwise, restore the popped memento itself.
+        to_restore = self._undo[-1] if self._undo else popped
+        originator.restore_from_memento(to_restore)
         return True
 
     def redo(self, originator) -> bool:
         if not self._redo:
             return False
+        # Pop the next state to restore
         nxt = self._redo.pop()
+
+        # Push current state to undo stack (so it can be undone again)
         try:
             self._undo.append(originator.save_to_memento())
         except Exception:
+            # If originator cannot save, still attempt restore
             pass
+
         originator.restore_from_memento(nxt)
         return True
 
