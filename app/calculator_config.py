@@ -2,15 +2,36 @@
 """Module for managing application configuration from environment variables."""
 from __future__ import annotations
 import os
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except Exception:
+    # Provide a no-op fallback so the module imports in CI without extra deps.
+    def load_dotenv(*args, **kwargs):
+        return None
+
 
 class Config:
-    """Loads and provides access to configuration settings."""
+    """Loads and provides access to configuration settings.
+
+    Backwards-compatible `load()` entrypoint is provided because other
+    modules call `Config.load()` during initialization.
+    """
 
     @staticmethod
-    def load_config() -> None:
-        """Load environment variables from .env if present."""
-        load_dotenv()
+    def load(override: bool = True) -> None:
+        """Load environment variables and ensure runtime directories exist."""
+        # Load from .env if available (no-op if load_dotenv missing)
+        try:
+            load_dotenv(override=override)
+        except TypeError:
+            # older/simple fallback signature
+            load_dotenv()
+        # Ensure directories exist so logger/history can create files during tests
+        os.makedirs(Config.get_log_dir(), exist_ok=True)
+        os.makedirs(Config.get_history_dir(), exist_ok=True)
+
+    # Backwards-compatible alias retained for older code
+    load_config = load
 
     # --------- Paths / files ----------
     @staticmethod
