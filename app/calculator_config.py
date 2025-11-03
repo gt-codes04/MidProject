@@ -5,9 +5,37 @@ import os
 try:
     from dotenv import load_dotenv
 except Exception:
-    # Provide a no-op fallback so the module imports in CI without extra deps.
-    def load_dotenv(*args, **kwargs):
-        return None
+    # If python-dotenv isn't available, provide a small fallback implementation
+    # that reads a `.env` file in the repository root and sets os.environ
+    # accordingly. This keeps behavior consistent for local development.
+    def load_dotenv(override: bool = True, path: str | None = None):
+        """Minimal .env loader used when python-dotenv is not installed.
+
+        Args:
+            override: if True, overwrite existing environment variables.
+            path: optional path to the .env file. If omitted, looks for
+                  a .env in the project root (parent of this module).
+        """
+        try:
+            base = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            env_path = path or os.path.join(base, ".env")
+            if not os.path.exists(env_path):
+                return None
+            with open(env_path, "r", encoding="utf-8") as fh:
+                for raw in fh:
+                    line = raw.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if "=" not in line:
+                        continue
+                    key, val = line.split("=", 1)
+                    key = key.strip()
+                    val = val.strip().strip('"').strip("'")
+                    if override or key not in os.environ:
+                        os.environ[key] = val
+        except Exception:
+            # Do not raise on env parsing errors; fall back to defaults
+            return None
 
 
 class Config:
@@ -63,7 +91,7 @@ class Config:
     # --------- Calculation settings ----------
     @staticmethod
     def get_precision() -> int:
-        return int(os.getenv("CALCULATOR_PRECISION", 4))
+        return int(os.getenv("CALCULATOR_PRECISION", 6))
 
     @staticmethod
     def get_max_input_value() -> float:
